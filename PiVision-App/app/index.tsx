@@ -1,13 +1,16 @@
-// app/index.tsx
 import { useEffect, useState } from "react";
 import {
     View,
     Text,
-    Button,
     ActivityIndicator,
     StyleSheet,
     ScrollView,
+    Image,
+    TouchableOpacity,
 } from "react-native";
+
+import Header from "../src/components/Header";
+
 import {
     getStatus,
     armSystem,
@@ -42,6 +45,7 @@ export default function DashboardScreen() {
         if (!status) return;
         try {
             setUpdating(true);
+
             if (status.armed) {
                 await disarmSystem();
                 setStatus({ ...status, armed: false });
@@ -59,7 +63,7 @@ export default function DashboardScreen() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator />
+                <ActivityIndicator size="large" />
                 <Text style={styles.muted}>Loading PiVision status…</Text>
             </View>
         );
@@ -69,76 +73,249 @@ export default function DashboardScreen() {
         return (
             <View style={styles.center}>
                 <Text style={styles.error}>{error ?? "No status available."}</Text>
-                <Button title="Retry" onPress={loadStatus} />
+                <TouchableOpacity style={styles.primaryButton} onPress={loadStatus}>
+                    <Text style={styles.primaryButtonText}>Retry</Text>
+                </TouchableOpacity>
             </View>
         );
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <Text style={styles.title}>PiVision Dashboard</Text>
+        <>
+            <Header />
 
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>System Status</Text>
-                <Text>
-                    Online:{" "}
-                    <Text style={{ color: status.online ? "green" : "red" }}>
-                        {status.online ? "Yes" : "No"}
+            <ScrollView contentContainerStyle={styles.container}>
+                <View style={styles.headerRow}>
+                    <View>
+                        <Text style={styles.title}>Dashboard</Text>
+                        <Text style={styles.subtitle}>PiVision system overview</Text>
+                    </View>
+                </View>
+
+                {/* System status + armed control combined in one card */}
+                <View style={styles.card}>
+                    <View style={styles.cardHeaderRow}>
+                        <Text style={styles.cardTitle}>System Status</Text>
+                        <View
+                            style={[
+                                styles.statusPill,
+                                status.online ? styles.statusOnline : styles.statusOffline,
+                            ]}
+                        >
+                            <View style={styles.statusDot} />
+                            <Text style={styles.statusPillText}>
+                                {status.online ? "Online" : "Offline"}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <Text style={styles.cardBodyText}>
+                        Last heartbeat:
                     </Text>
-                </Text>
-                <Text style={styles.muted}>
-                    Last heartbeat: {new Date(status.lastHeartbeat).toLocaleString()}
-                </Text>
-            </View>
+                    <Text style={styles.cardBodyStrong}>
+                        {new Date(status.lastHeartbeat).toLocaleString()}
+                    </Text>
 
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>Armed State</Text>
-                <Text style={{ marginBottom: 8 }}>
-                    System is currently{" "}
-                    <Text
-                        style={{
-                            color: status.armed ? "red" : "grey",
-                            fontWeight: "600",
-                        }}
+                    <View style={styles.divider} />
+
+                    <Text style={styles.cardBodyText}>
+                        Armed state:{" "}
+                        <Text
+                            style={[
+                                styles.armedText,
+                                status.armed ? styles.armedOn : styles.armedOff,
+                            ]}
+                        >
+                            {status.armed ? "ARMED" : "DISARMED"}
+                        </Text>
+                    </Text>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.primaryButton,
+                            status.armed && styles.dangerButton,
+                            updating && styles.buttonDisabled,
+                        ]}
+                        onPress={handleToggleArm}
+                        disabled={updating}
                     >
-                        {status.armed ? "ARMED" : "DISARMED"}
-                    </Text>
-                </Text>
-                <Button
-                    title={status.armed ? "Disarm system" : "Arm system"}
-                    onPress={handleToggleArm}
-                    disabled={updating}
-                />
-            </View>
+                        <Text style={styles.primaryButtonText}>
+                            {updating
+                                ? "Updating…"
+                                : status.armed
+                                    ? "Disarm system"
+                                    : "Arm system"}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
 
-            <View style={styles.card}>
-                <Text style={styles.cardTitle}>Quick Info</Text>
-                <Text style={styles.muted}>• Raspberry Pi intruder detection</Text>
-                <Text style={styles.muted}>• Camera + motion / ML pipeline</Text>
-                <Text style={styles.muted}>• This app = PiVision controller</Text>
-            </View>
-        </ScrollView>
+                {/* Latest snapshot */}
+                <View style={styles.card}>
+                    <Text style={styles.cardTitle}>Latest Snapshot</Text>
+
+                    <Image
+                        source={require("../assets/images/snapshot-placeholder.jpg")}
+                        style={styles.snapshotImage}
+                        resizeMode="cover"
+                    />
+
+                    <Text style={styles.muted}>
+                        Placeholder image — this will show the latest detection from
+                        PiVision-Pi.
+                    </Text>
+                </View>
+            </ScrollView>
+        </>
     );
 }
+
+const NAVY_BACKGROUND = "#020617"; // very dark navy (matches header vibe)
+const NAVY_DARK = "#0b1120";        // card shadow/navy
+const WHITE = "#ffffff";
 
 const styles = StyleSheet.create({
     container: {
         padding: 16,
+        gap: 16,
+        backgroundColor: NAVY_BACKGROUND,
+        minHeight: "100%",
+        paddingBottom: 32,
+    },
+    center: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
         gap: 12,
+        backgroundColor: NAVY_BACKGROUND,
+        padding: 16,
     },
-    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-    title: { fontSize: 24, fontWeight: "700", marginBottom: 8 },
+    headerRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    title: {
+        fontSize: 26,
+        fontWeight: "700",
+        color: WHITE,
+        marginBottom: 4,
+    },
+    subtitle: {
+        fontSize: 13,
+        color: "#9ca3af",
+    },
     card: {
-        backgroundColor: "white",
-        padding: 14,
-        borderRadius: 12,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        backgroundColor: WHITE,
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: "#1f2937",
+        shadowColor: NAVY_DARK,
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        gap: 10,
     },
-    cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 4 },
-    muted: { color: "#666", fontSize: 12, marginTop: 2 },
-    error: { color: "red", marginBottom: 8, textAlign: "center" },
+    cardHeaderRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 4,
+    },
+    cardTitle: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: NAVY_DARK,
+    },
+    cardBodyText: {
+        fontSize: 13,
+        color: "#4b5563",
+    },
+    cardBodyStrong: {
+        fontSize: 13,
+        color: "#111827",
+        fontWeight: "600",
+        marginBottom: 4,
+    },
+    muted: {
+        color: "#6b7280",
+        fontSize: 12,
+        marginTop: 4,
+    },
+    error: {
+        color: "#fca5a5",
+        fontSize: 14,
+        textAlign: "center",
+    },
+    snapshotImage: {
+        width: "100%",
+        height: 180,
+        borderRadius: 12,
+        marginTop: 8,
+        backgroundColor: "#e5e7eb",
+    },
+
+    // Status pill (online/offline)
+    statusPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 999,
+    },
+    statusOnline: {
+        backgroundColor: "#dcfce7",
+    },
+    statusOffline: {
+        backgroundColor: "#fee2e2",
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 999,
+        marginRight: 6,
+        backgroundColor: "#22c55e",
+    },
+    statusPillText: {
+        fontSize: 11,
+        fontWeight: "600",
+        color: "#14532d",
+    },
+
+    // Armed text
+    armedText: {
+        fontWeight: "700",
+    },
+    armedOn: {
+        color: "#b91c1c",
+    },
+    armedOff: {
+        color: "#1d4ed8",
+    },
+
+    // Button styles
+    primaryButton: {
+        marginTop: 10,
+        paddingVertical: 10,
+        borderRadius: 999,
+        alignItems: "center",
+        backgroundColor: NAVY_DARK,
+    },
+    dangerButton: {
+        backgroundColor: "#b91c1c",
+    },
+    buttonDisabled: {
+        opacity: 0.7,
+    },
+    primaryButtonText: {
+        color: WHITE,
+        fontWeight: "600",
+        fontSize: 14,
+    },
+
+    divider: {
+        height: 1,
+        backgroundColor: "#e5e7eb",
+        marginVertical: 8,
+    },
 });
