@@ -13,7 +13,7 @@ export interface Alert {
     confidence: number;
 }
 
-// TODO later: swap mocks for real fetch() calls to your Pi backend
+// later: swap mocks for real fetch() calls to your Pi backend
 export async function getStatus(): Promise<SystemStatus> {
     return {
         online: true,
