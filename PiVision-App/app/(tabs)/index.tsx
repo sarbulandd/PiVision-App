@@ -8,15 +8,17 @@ import {
     Image,
     TouchableOpacity,
 } from "react-native";
-
-import Header from "../src/components/Header";
-
+import Header from "../../src/components/Header";
 import {
     getStatus,
     armSystem,
     disarmSystem,
     SystemStatus,
-} from "../src/api/securityMonitorApi";
+} from "../../src/api/securityMonitorApi";
+
+const NAVY_BACKGROUND = "#020617";
+const NAVY_DARK = "#0b1120";
+const WHITE = "#ffffff";
 
 export default function DashboardScreen() {
     const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -27,11 +29,14 @@ export default function DashboardScreen() {
     const loadStatus = async () => {
         try {
             setLoading(true);
+            setError(null);
+
             const data = await getStatus();
             setStatus(data);
-            setError(null);
         } catch (err) {
+            console.error("Failed to load system status:", err);
             setError("Failed to load system status.");
+            setStatus(null);
         } finally {
             setLoading(false);
         }
@@ -43,8 +48,10 @@ export default function DashboardScreen() {
 
     const handleToggleArm = async () => {
         if (!status) return;
+
         try {
             setUpdating(true);
+            setError(null);
 
             if (status.armed) {
                 await disarmSystem();
@@ -54,6 +61,7 @@ export default function DashboardScreen() {
                 setStatus({ ...status, armed: true });
             }
         } catch (err) {
+            console.error("Failed to update system state:", err);
             setError("Failed to update system state.");
         } finally {
             setUpdating(false);
@@ -63,7 +71,7 @@ export default function DashboardScreen() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" />
+                <ActivityIndicator size="large" color={WHITE} />
                 <Text style={styles.muted}>Loading PiVision status…</Text>
             </View>
         );
@@ -73,6 +81,7 @@ export default function DashboardScreen() {
         return (
             <View style={styles.center}>
                 <Text style={styles.error}>{error ?? "No status available."}</Text>
+
                 <TouchableOpacity style={styles.primaryButton} onPress={loadStatus}>
                     <Text style={styles.primaryButtonText}>Retry</Text>
                 </TouchableOpacity>
@@ -81,37 +90,42 @@ export default function DashboardScreen() {
     }
 
     return (
-        <>
+        <View style={styles.screen}>
             <Header />
 
             <ScrollView contentContainerStyle={styles.container}>
                 <View style={styles.headerRow}>
-                    <View>
-                        <Text style={styles.title}>Dashboard</Text>
-                        <Text style={styles.subtitle}>PiVision system overview</Text>
-                    </View>
+                    <Text style={styles.title}>Dashboard</Text>
                 </View>
 
-                {/* System status + armed control combined in one card */}
                 <View style={styles.card}>
                     <View style={styles.cardHeaderRow}>
                         <Text style={styles.cardTitle}>System Status</Text>
+
                         <View
                             style={[
                                 styles.statusPill,
                                 status.online ? styles.statusOnline : styles.statusOffline,
                             ]}
                         >
-                            <View style={styles.statusDot} />
-                            <Text style={styles.statusPillText}>
+                            <View
+                                style={[
+                                    styles.statusDot,
+                                    { backgroundColor: status.online ? "#22c55e" : "#ef4444" },
+                                ]}
+                            />
+                            <Text
+                                style={[
+                                    styles.statusPillText,
+                                    { color: status.online ? "#14532d" : "#991b1b" },
+                                ]}
+                            >
                                 {status.online ? "Online" : "Offline"}
                             </Text>
                         </View>
                     </View>
 
-                    <Text style={styles.cardBodyText}>
-                        Last heartbeat:
-                    </Text>
+                    <Text style={styles.cardBodyText}>Last heartbeat:</Text>
                     <Text style={styles.cardBodyStrong}>
                         {new Date(status.lastHeartbeat).toLocaleString()}
                     </Text>
@@ -149,37 +163,31 @@ export default function DashboardScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Latest snapshot */}
                 <View style={styles.card}>
                     <Text style={styles.cardTitle}>Latest Snapshot</Text>
 
                     <Image
-                        source={require("../assets/images/snapshot-placeholder.jpg")}
+                        source={require("../../assets/images/snapshot-placeholder.jpg")}
                         style={styles.snapshotImage}
                         resizeMode="cover"
                     />
 
-                    <Text style={styles.muted}>
-                        Placeholder image — this will show the latest detection from
-                        PiVision-Pi.
-                    </Text>
+                    <Text style={styles.muted}>Placeholder image</Text>
                 </View>
             </ScrollView>
-        </>
+        </View>
     );
 }
 
-const NAVY_BACKGROUND = "#020617"; // very dark navy (matches header vibe)
-const NAVY_DARK = "#0b1120";        // card shadow/navy
-const WHITE = "#ffffff";
-
 const styles = StyleSheet.create({
+    screen: {
+        flex: 1,
+        backgroundColor: NAVY_BACKGROUND,
+    },
     container: {
         padding: 16,
-        gap: 16,
-        backgroundColor: NAVY_BACKGROUND,
-        minHeight: "100%",
         paddingBottom: 32,
+        gap: 16,
     },
     center: {
         flex: 1,
@@ -199,10 +207,6 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: WHITE,
         marginBottom: 4,
-    },
-    subtitle: {
-        fontSize: 13,
-        color: "#9ca3af",
     },
     card: {
         backgroundColor: WHITE,
@@ -254,8 +258,6 @@ const styles = StyleSheet.create({
         marginTop: 8,
         backgroundColor: "#e5e7eb",
     },
-
-    // Status pill (online/offline)
     statusPill: {
         flexDirection: "row",
         alignItems: "center",
@@ -274,15 +276,11 @@ const styles = StyleSheet.create({
         height: 8,
         borderRadius: 999,
         marginRight: 6,
-        backgroundColor: "#22c55e",
     },
     statusPillText: {
         fontSize: 11,
         fontWeight: "600",
-        color: "#14532d",
     },
-
-    // Armed text
     armedText: {
         fontWeight: "700",
     },
@@ -292,8 +290,6 @@ const styles = StyleSheet.create({
     armedOff: {
         color: "#1d4ed8",
     },
-
-    // Button styles
     primaryButton: {
         marginTop: 10,
         paddingVertical: 10,
@@ -312,7 +308,6 @@ const styles = StyleSheet.create({
         fontWeight: "600",
         fontSize: 14,
     },
-
     divider: {
         height: 1,
         backgroundColor: "#e5e7eb",

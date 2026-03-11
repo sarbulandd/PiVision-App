@@ -98,7 +98,7 @@ export default function SettingsScreen() {
                     <View style={styles.row}>
                         <View style={styles.rowText}>
                             <Text style={styles.label}>App version</Text>
-                            <Text style={styles.muted}>0.1.0 · WIP prototype</Text>
+                            <Text style={styles.muted}>0.1.0</Text>
                         </View>
                     </View>
 
@@ -113,8 +113,7 @@ export default function SettingsScreen() {
                 </View>
 
                 <Text style={styles.footerText}>
-                    Settings are currently stored locally for demo purposes.
-                    Cloud sync and backend persistence can be added in a later phase.
+                    Settings are currently stored locally.
                 </Text>
             </ScrollView>
         </View>

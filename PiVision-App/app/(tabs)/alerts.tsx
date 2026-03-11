@@ -1,4 +1,3 @@
-// app/alerts.tsx
 import { useEffect, useState } from "react";
 import {
     View,
@@ -7,9 +6,11 @@ import {
     FlatList,
     ActivityIndicator,
     RefreshControl,
+    Pressable,
     Image,
 } from "react-native";
-import { getAlerts, Alert } from "../src/api/securityMonitorApi";
+import { router } from "expo-router";
+import { getAlerts, Alert } from "../../src/api/securityMonitorApi";
 
 const NAVY = "#020617";
 
@@ -19,10 +20,12 @@ export default function AlertsScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     const loadAlerts = async () => {
-        setLoading(true);
         try {
             const data = await getAlerts();
-            setAlerts(data);
+            setAlerts(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Failed to load alerts:", error);
+            setAlerts([]);
         } finally {
             setLoading(false);
         }
@@ -30,24 +33,20 @@ export default function AlertsScreen() {
 
     const refresh = async () => {
         setRefreshing(true);
-        await loadAlerts();
-        setRefreshing(false);
+        try {
+            const data = await getAlerts();
+            setAlerts(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Failed to refresh alerts:", error);
+        } finally {
+            setRefreshing(false);
+        }
     };
 
     useEffect(() => {
         loadAlerts();
     }, []);
 
-    if (loading) {
-        return (
-            <View style={styles.center}>
-                <ActivityIndicator color="white" />
-                <Text style={styles.muted}>Loading alerts…</Text>
-            </View>
-        );
-    }
-
-    // TEMP: nice human-readable messages for WIP demo
     const formatAlertMessage = (item: Alert) => {
         switch (item.type) {
             case "motion":
@@ -61,13 +60,50 @@ export default function AlertsScreen() {
         }
     };
 
+    const formatTimestamp = (timestamp: string) => {
+        const date = new Date(timestamp);
+
+        if (Number.isNaN(date.getTime())) {
+            return "Unknown time";
+        }
+
+        return date.toLocaleString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+        });
+    };
+
+    const openAlert = (item: Alert) => {
+        if (!item?.id) {
+            return;
+        }
+
+        router.push({
+            pathname: "/alert/[id]",
+            params: { id: String(item.id) },
+        });
+    };
+
+    if (loading) {
+        return (
+            <View style={styles.center}>
+                <ActivityIndicator color="white" />
+                <Text style={styles.muted}>Loading alerts…</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <Text style={styles.title}>Alerts</Text>
 
             <FlatList
                 data={alerts}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item, index) => String(item?.id ?? index)}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -76,24 +112,29 @@ export default function AlertsScreen() {
                     />
                 }
                 renderItem={({ item }) => (
-                    <View style={styles.card}>
+                    <Pressable style={styles.card} onPress={() => openAlert(item)}>
                         <Image
-                            source={require("../assets/images/snapshot-placeholder.jpg")}
+                            source={require("../../assets/images/snapshot-placeholder.jpg")}
                             style={styles.thumbnail}
                             resizeMode="cover"
                         />
+
                         <View style={styles.cardTextBlock}>
-                            <Text style={styles.message}>
-                                {formatAlertMessage(item)}
-                            </Text>
+                            <Text style={styles.message}>{formatAlertMessage(item)}</Text>
                             <Text style={styles.timestamp}>
-                                {new Date(item.timestamp).toLocaleString()}
+                                {formatTimestamp(item.timestamp)}
                             </Text>
                         </View>
-                    </View>
+
+                        <Text style={styles.chevron}>›</Text>
+                    </Pressable>
                 )}
                 ListEmptyComponent={
                     <Text style={styles.muted}>No alerts recorded yet.</Text>
+                }
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={
+                    alerts.length === 0 ? styles.emptyListContent : undefined
                 }
             />
         </View>
@@ -119,13 +160,12 @@ const styles = StyleSheet.create({
         color: "white",
         marginBottom: 12,
     },
-
     card: {
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: "#0f172a",
         padding: 12,
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 12,
         borderWidth: 1,
         borderColor: "#1e293b",
@@ -144,15 +184,26 @@ const styles = StyleSheet.create({
         color: "white",
         fontSize: 15,
         fontWeight: "600",
-        marginBottom: 2,
+        marginBottom: 4,
     },
     timestamp: {
         color: "#9ca3af",
         fontSize: 12,
     },
+    chevron: {
+        color: "#94a3b8",
+        fontSize: 24,
+        fontWeight: "600",
+        marginLeft: 8,
+    },
     muted: {
         color: "#9ca3af",
         fontSize: 14,
         textAlign: "center",
+        marginTop: 24,
+    },
+    emptyListContent: {
+        flexGrow: 1,
+        justifyContent: "center",
     },
 });

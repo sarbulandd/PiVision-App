@@ -1,5 +1,6 @@
 {
   "expo": {
+    "scheme": "pivision",
     "name": "PiVision-App",
     "slug": "PiVision-App",
     "version": "1.0.0",
