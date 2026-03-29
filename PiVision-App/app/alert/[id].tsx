@@ -35,7 +35,7 @@ function formatAlertMessage(item: Alert) {
         case "motion":
             return "Motion detected – view snapshot";
         case "person":
-            return "Sarbuland at the door – front camera";
+            return `${item.recognisedPerson ?? "Known person"} detected`;
         case "unknown":
             return "Unknown person detected – view snapshot";
         default:
@@ -115,6 +115,14 @@ export default function AlertDetailScreen() {
                         <Text style={styles.meta}>Alert ID: {String(alert.id)}</Text>
                         <Text style={styles.meta}>Time: {formatDate(alert.timestamp)}</Text>
                         <Text style={styles.meta}>Type: {alert.type}</Text>
+                        <Text style={styles.meta}>
+                            Face detected: {alert.faceDetected ? "Yes" : "No"}
+                        </Text>
+                        {alert.recognisedPerson && (
+                            <Text style={styles.meta}>
+                                Recognised: {alert.recognisedPerson}
+                            </Text>
+                        )}
 
                         <Pressable style={styles.playButton}>
                             <Text style={styles.playButtonText}>Play Clip</Text>

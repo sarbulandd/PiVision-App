@@ -52,7 +52,7 @@ export default function AlertsScreen() {
             case "motion":
                 return "Motion detected – view snapshot";
             case "person":
-                return "Sarbuland at the door – front camera";
+                return `${item.recognisedPerson ?? "Known person"} detected`;
             case "unknown":
                 return "Unknown person detected – view snapshot";
             default:
