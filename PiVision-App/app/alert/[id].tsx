@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Image,
@@ -9,6 +9,7 @@ import {
     View,
 } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
+import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
 import { getAlerts, Alert } from "../../src/api/securityMonitorApi";
 
 const NAVY = "#020617";
@@ -50,6 +51,8 @@ export default function AlertDetailScreen() {
 
     const [alert, setAlert] = useState<Alert | null>(null);
     const [loading, setLoading] = useState(true);
+    const [showVideo, setShowVideo] = useState(false);
+    const videoRef = useRef<Video>(null);
 
     const placeholderImage = require("../../assets/images/snapshot-placeholder.jpg");
 
@@ -105,11 +108,26 @@ export default function AlertDetailScreen() {
                     <Text style={styles.pageTitle}>Alert Details</Text>
 
                     <View style={styles.card}>
-                        <Image
-                            source={placeholderImage}
-                            style={styles.image}
-                            resizeMode="cover"
-                        />
+                        {showVideo && alert.videoPath?.startsWith("https://") ? (
+                            <Video
+                                ref={videoRef}
+                                source={{ uri: alert.videoPath }}
+                                style={styles.image}
+                                resizeMode={ResizeMode.COVER}
+                                useNativeControls
+                                shouldPlay
+                            />
+                        ) : (
+                            <Image
+                                source={
+                                    alert.snapshotPath?.startsWith("https://")
+                                        ? { uri: alert.snapshotPath }
+                                        : placeholderImage
+                                }
+                                style={styles.image}
+                                resizeMode="cover"
+                            />
+                        )}
 
                         <Text style={styles.title}>{formatAlertMessage(alert)}</Text>
                         <Text style={styles.meta}>Alert ID: {String(alert.id)}</Text>
@@ -124,13 +142,16 @@ export default function AlertDetailScreen() {
                             </Text>
                         )}
 
-                        <Pressable style={styles.playButton}>
-                            <Text style={styles.playButtonText}>Play Clip</Text>
-                        </Pressable>
-
-                        <Text style={styles.note}>
-                            Later, this button can open the video clip stored in Azure.
-                        </Text>
+                        {alert.videoPath?.startsWith("https://") && (
+                            <Pressable
+                                style={styles.playButton}
+                                onPress={() => setShowVideo((v) => !v)}
+                            >
+                                <Text style={styles.playButtonText}>
+                                    {showVideo ? "Show Snapshot" : "Play Clip"}
+                                </Text>
+                            </Pressable>
+                        )}
                     </View>
                 </ScrollView>
             )}
@@ -196,12 +217,6 @@ const styles = StyleSheet.create({
         color: "#ffffff",
         fontSize: 18,
         fontWeight: "700",
-    },
-    note: {
-        marginTop: 14,
-        color: "#6b7280",
-        fontSize: 14,
-        lineHeight: 20,
     },
     notFoundText: {
         color: "#ffffff",

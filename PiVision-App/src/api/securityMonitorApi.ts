@@ -1,5 +1,5 @@
 // src/api/securityMonitorApi.ts
-import { BASE_URL } from "./config";
+import { BASE_URL, HEADERS } from "./config";
 
 // ──────────────────────────────────────────────
 // Types that match what the Pi Flask API returns
@@ -85,7 +85,7 @@ function mapEvent(event: PiEvent): Alert {
 
 /** GET /status → SystemStatus */
 export async function getStatus(): Promise<SystemStatus> {
-    const res = await fetch(`${BASE_URL}/status`);
+    const res = await fetch(`${BASE_URL}/status`, { headers: HEADERS });
 
     if (!res.ok) {
         throw new Error(`GET /status failed (${res.status})`);
@@ -102,7 +102,7 @@ export async function getStatus(): Promise<SystemStatus> {
 
 /** POST /arm */
 export async function armSystem(): Promise<void> {
-    const res = await fetch(`${BASE_URL}/arm`, { method: "POST" });
+    const res = await fetch(`${BASE_URL}/arm`, { method: "POST", headers: HEADERS });
 
     if (!res.ok) {
         throw new Error(`POST /arm failed (${res.status})`);
@@ -111,7 +111,7 @@ export async function armSystem(): Promise<void> {
 
 /** POST /disarm */
 export async function disarmSystem(): Promise<void> {
-    const res = await fetch(`${BASE_URL}/disarm`, { method: "POST" });
+    const res = await fetch(`${BASE_URL}/disarm`, { method: "POST", headers: HEADERS });
 
     if (!res.ok) {
         throw new Error(`POST /disarm failed (${res.status})`);
@@ -120,7 +120,7 @@ export async function disarmSystem(): Promise<void> {
 
 /** GET /events → Alert[] (newest first) */
 export async function getAlerts(): Promise<Alert[]> {
-    const res = await fetch(`${BASE_URL}/events`);
+    const res = await fetch(`${BASE_URL}/events`, { headers: HEADERS });
 
     if (!res.ok) {
         throw new Error(`GET /events failed (${res.status})`);
@@ -133,7 +133,7 @@ export async function getAlerts(): Promise<Alert[]> {
 
 /** GET /events/latest → Alert | null */
 export async function getLatestAlert(): Promise<Alert | null> {
-    const res = await fetch(`${BASE_URL}/events/latest`);
+    const res = await fetch(`${BASE_URL}/events/latest`, { headers: HEADERS });
 
     if (res.status === 404) {
         return null; // no events yet
@@ -147,10 +147,28 @@ export async function getLatestAlert(): Promise<Alert | null> {
     return mapEvent(event);
 }
 
+/** DELETE /events/:id → delete a single alert */
+export async function deleteAlert(id: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/events/${id}`, {
+        method: "DELETE",
+        headers: HEADERS,
+    });
+    if (!res.ok) throw new Error(`DELETE /events/${id} failed (${res.status})`);
+}
+
+/** DELETE /events → clear all alerts */
+export async function clearAllAlerts(): Promise<void> {
+    const res = await fetch(`${BASE_URL}/events`, {
+        method: "DELETE",
+        headers: HEADERS,
+    });
+    if (!res.ok) throw new Error(`DELETE /events failed (${res.status})`);
+}
+
 /** GET / → quick connectivity check */
 export async function ping(): Promise<boolean> {
     try {
-        const res = await fetch(`${BASE_URL}/`, { method: "GET" });
+        const res = await fetch(`${BASE_URL}/`, { method: "GET", headers: HEADERS });
         return res.ok;
     } catch {
         return false;

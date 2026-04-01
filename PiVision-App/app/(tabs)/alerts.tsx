@@ -8,9 +8,10 @@ import {
     RefreshControl,
     Pressable,
     Image,
+    Alert as RNAlert,
 } from "react-native";
 import { router } from "expo-router";
-import { getAlerts, Alert } from "../../src/api/securityMonitorApi";
+import { getAlerts, deleteAlert, clearAllAlerts, Alert } from "../../src/api/securityMonitorApi";
 
 const NAVY = "#020617";
 
@@ -77,6 +78,42 @@ export default function AlertsScreen() {
         });
     };
 
+    const handleDelete = (item: Alert) => {
+        RNAlert.alert("Delete Alert", "Remove this alert permanently?", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Delete",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        await deleteAlert(item.id);
+                        setAlerts((prev) => prev.filter((a) => a.id !== item.id));
+                    } catch (err) {
+                        console.error("Failed to delete alert:", err);
+                    }
+                },
+            },
+        ]);
+    };
+
+    const handleClearAll = () => {
+        RNAlert.alert("Clear All Alerts", "This will permanently delete all alerts. Are you sure?", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Clear All",
+                style: "destructive",
+                onPress: async () => {
+                    try {
+                        await clearAllAlerts();
+                        setAlerts([]);
+                    } catch (err) {
+                        console.error("Failed to clear alerts:", err);
+                    }
+                },
+            },
+        ]);
+    };
+
     const openAlert = (item: Alert) => {
         if (!item?.id) {
             return;
@@ -99,7 +136,14 @@ export default function AlertsScreen() {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.title}>Alerts</Text>
+            <View style={styles.headerRow}>
+                <Text style={styles.title}>Alerts</Text>
+                {alerts.length > 0 && (
+                    <Pressable onPress={handleClearAll} style={styles.clearButton}>
+                        <Text style={styles.clearButtonText}>Clear All</Text>
+                    </Pressable>
+                )}
+            </View>
 
             <FlatList
                 data={alerts}
@@ -114,7 +158,11 @@ export default function AlertsScreen() {
                 renderItem={({ item }) => (
                     <Pressable style={styles.card} onPress={() => openAlert(item)}>
                         <Image
-                            source={require("../../assets/images/snapshot-placeholder.jpg")}
+                            source={
+                                item.snapshotPath?.startsWith("https://")
+                                    ? { uri: item.snapshotPath }
+                                    : require("../../assets/images/snapshot-placeholder.jpg")
+                            }
                             style={styles.thumbnail}
                             resizeMode="cover"
                         />
@@ -126,7 +174,13 @@ export default function AlertsScreen() {
                             </Text>
                         </View>
 
-                        <Text style={styles.chevron}>›</Text>
+                        <Pressable
+                            onPress={() => handleDelete(item)}
+                            style={styles.deleteButton}
+                            hitSlop={8}
+                        >
+                            <Text style={styles.deleteButtonText}>✕</Text>
+                        </Pressable>
                     </Pressable>
                 )}
                 ListEmptyComponent={
@@ -154,11 +208,27 @@ const styles = StyleSheet.create({
         gap: 8,
         backgroundColor: NAVY,
     },
+    headerRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: 12,
+    },
     title: {
         fontSize: 26,
         fontWeight: "700",
         color: "white",
-        marginBottom: 12,
+    },
+    clearButton: {
+        backgroundColor: "#7f1d1d",
+        paddingHorizontal: 14,
+        paddingVertical: 6,
+        borderRadius: 999,
+    },
+    clearButtonText: {
+        color: "white",
+        fontSize: 13,
+        fontWeight: "600",
     },
     card: {
         flexDirection: "row",
@@ -190,11 +260,14 @@ const styles = StyleSheet.create({
         color: "#9ca3af",
         fontSize: 12,
     },
-    chevron: {
-        color: "#94a3b8",
-        fontSize: 24,
-        fontWeight: "600",
-        marginLeft: 8,
+    deleteButton: {
+        padding: 6,
+        marginLeft: 4,
+    },
+    deleteButtonText: {
+        color: "#ef4444",
+        fontSize: 16,
+        fontWeight: "700",
     },
     muted: {
         color: "#9ca3af",

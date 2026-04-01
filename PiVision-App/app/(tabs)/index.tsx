@@ -13,7 +13,9 @@ import {
     getStatus,
     armSystem,
     disarmSystem,
+    getLatestAlert,
     SystemStatus,
+    Alert,
 } from "../../src/api/securityMonitorApi";
 
 const NAVY_BACKGROUND = "#020617";
@@ -22,6 +24,7 @@ const WHITE = "#ffffff";
 
 export default function DashboardScreen() {
     const [status, setStatus] = useState<SystemStatus | null>(null);
+    const [latestAlert, setLatestAlert] = useState<Alert | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [updating, setUpdating] = useState(false);
@@ -31,8 +34,9 @@ export default function DashboardScreen() {
             setLoading(true);
             setError(null);
 
-            const data = await getStatus();
+            const [data, latest] = await Promise.all([getStatus(), getLatestAlert()]);
             setStatus(data);
+            setLatestAlert(latest);
         } catch (err) {
             console.error("Failed to load system status:", err);
             setError("Failed to load system status.");
@@ -167,12 +171,28 @@ export default function DashboardScreen() {
                     <Text style={styles.cardTitle}>Latest Snapshot</Text>
 
                     <Image
-                        source={require("../../assets/images/snapshot-placeholder.jpg")}
+                        source={
+                            latestAlert?.snapshotPath?.startsWith("https://")
+                                ? { uri: latestAlert.snapshotPath }
+                                : require("../../assets/images/snapshot-placeholder.jpg")
+                        }
                         style={styles.snapshotImage}
                         resizeMode="cover"
                     />
 
-                    <Text style={styles.muted}>Placeholder image</Text>
+                    {latestAlert ? (
+                        <Text style={styles.muted}>
+                            {new Date(latestAlert.timestamp).toLocaleString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                            })}
+                        </Text>
+                    ) : (
+                        <Text style={styles.muted}>No snapshots yet</Text>
+                    )}
                 </View>
             </ScrollView>
         </View>

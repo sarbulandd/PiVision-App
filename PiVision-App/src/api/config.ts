@@ -1,14 +1,12 @@
 // src/api/config.ts
 // -------------------------------------------------
-// Change PI_IP to your Raspberry Pi's local IP address.
-// The app and Pi must be on the same Wi-Fi network.
+// Update BASE_URL whenever your ngrok URL changes.
 // -------------------------------------------------
 
-const PI_IP = "192.168.1.100"; // ← replace with your Pi's IP
+export const BASE_URL = "https://e538-82-16-250-247.ngrok-free.app";
 
-export const BASE_URL = `http://${PI_IP}:5000`;
-
-// Handy quick-reference:
-//   Phone on same Wi-Fi  →  PI_IP = "<pi-ip>"
-//   Android emulator     →  PI_IP = "10.0.2.2"
-//   iOS simulator        →  PI_IP = "localhost"
+// Required to bypass ngrok's browser warning interstitial on API calls
+export const HEADERS: Record<string, string> = {
+    "ngrok-skip-browser-warning": "true",
+    "Content-Type": "application/json",
+};
