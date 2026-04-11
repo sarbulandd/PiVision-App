@@ -9,21 +9,18 @@ import {
     View,
 } from "react-native";
 import { Stack, useLocalSearchParams } from "expo-router";
-import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
+import { Video, ResizeMode } from "expo-av";
 import { getAlerts, Alert } from "../../src/api/securityMonitorApi";
 
 const NAVY = "#020617";
+const NAVY_CARD = "#0f172a";
 
 function formatDate(dateString: string) {
     const date = new Date(dateString);
-
-    if (Number.isNaN(date.getTime())) {
-        return "Unknown time";
-    }
-
+    if (Number.isNaN(date.getTime())) return "Unknown time";
     return date.toLocaleString("en-GB", {
         day: "2-digit",
-        month: "2-digit",
+        month: "short",
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
@@ -31,17 +28,29 @@ function formatDate(dateString: string) {
     });
 }
 
-function formatAlertMessage(item: Alert) {
-    switch (item.type) {
-        case "motion":
-            return "Motion detected – view snapshot";
-        case "person":
-            return `${item.recognisedPerson ?? "Known person"} detected`;
-        case "unknown":
-            return "Unknown person detected – view snapshot";
-        default:
-            return "Motion detected – view snapshot";
+function alertTitle(item: Alert) {
+    if (item.recognisedPerson) return `${item.recognisedPerson} detected`;
+    if (item.faceDetected) return "Unknown person detected";
+    if (item.type === "person") return "Person detected";
+    return "Motion detected";
+}
+
+function typeLabel(type: string) {
+    switch (type) {
+        case "person": return "Person";
+        case "motion": return "Motion";
+        case "unknown": return "Unknown";
+        default: return type;
     }
+}
+
+function InfoRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+    return (
+        <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>{label}</Text>
+            <Text style={[styles.infoValue, accent && styles.infoValueAccent]}>{value}</Text>
+        </View>
+    );
 }
 
 export default function AlertDetailScreen() {
@@ -63,7 +72,6 @@ export default function AlertDetailScreen() {
                 const found = Array.isArray(alerts)
                     ? alerts.find((item) => String(item.id) === String(id))
                     : null;
-
                 setAlert(found ?? null);
             } catch (error) {
                 console.error("Failed to load alert detail:", error);
@@ -73,12 +81,7 @@ export default function AlertDetailScreen() {
             }
         };
 
-        if (!id) {
-            setLoading(false);
-            setAlert(null);
-            return;
-        }
-
+        if (!id) { setLoading(false); setAlert(null); return; }
         loadAlert();
     }, [id]);
 
@@ -105,14 +108,14 @@ export default function AlertDetailScreen() {
                 </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.container}>
-                    <Text style={styles.pageTitle}>Alert Details</Text>
 
-                    <View style={styles.card}>
+                    {/* Snapshot / Video */}
+                    <View style={styles.mediaContainer}>
                         {showVideo && alert.videoPath?.startsWith("https://") ? (
                             <Video
                                 ref={videoRef}
                                 source={{ uri: alert.videoPath }}
-                                style={styles.image}
+                                style={styles.media}
                                 resizeMode={ResizeMode.COVER}
                                 useNativeControls
                                 shouldPlay
@@ -124,35 +127,52 @@ export default function AlertDetailScreen() {
                                         ? { uri: alert.snapshotPath }
                                         : placeholderImage
                                 }
-                                style={styles.image}
+                                style={styles.media}
                                 resizeMode="cover"
                             />
                         )}
+                    </View>
 
-                        <Text style={styles.title}>{formatAlertMessage(alert)}</Text>
-                        <Text style={styles.meta}>Alert ID: {String(alert.id)}</Text>
-                        <Text style={styles.meta}>Time: {formatDate(alert.timestamp)}</Text>
-                        <Text style={styles.meta}>Type: {alert.type}</Text>
-                        <Text style={styles.meta}>
-                            Face detected: {alert.faceDetected ? "Yes" : "No"}
-                        </Text>
+                    {/* Title */}
+                    <Text style={styles.title}>{alertTitle(alert)}</Text>
+                    <Text style={styles.timestamp}>{formatDate(alert.timestamp)}</Text>
+
+                    {/* Details card */}
+                    <View style={styles.card}>
+                        <Text style={styles.cardHeading}>Event Details</Text>
+
+                        <InfoRow label="Alert ID" value={String(alert.id)} />
+                        <View style={styles.divider} />
+                        <InfoRow label="Event type" value={typeLabel(alert.type)} />
+                        <View style={styles.divider} />
+                        <InfoRow
+                            label="Face detected"
+                            value={alert.faceDetected ? "Yes" : "No"}
+                            accent={alert.faceDetected}
+                        />
                         {alert.recognisedPerson && (
-                            <Text style={styles.meta}>
-                                Recognised: {alert.recognisedPerson}
-                            </Text>
-                        )}
-
-                        {alert.videoPath?.startsWith("https://") && (
-                            <Pressable
-                                style={styles.playButton}
-                                onPress={() => setShowVideo((v) => !v)}
-                            >
-                                <Text style={styles.playButtonText}>
-                                    {showVideo ? "Show Snapshot" : "Play Clip"}
-                                </Text>
-                            </Pressable>
+                            <>
+                                <View style={styles.divider} />
+                                <InfoRow
+                                    label="Recognised as"
+                                    value={alert.recognisedPerson}
+                                    accent
+                                />
+                            </>
                         )}
                     </View>
+
+                    {/* Play clip button */}
+                    {alert.videoPath?.startsWith("https://") && (
+                        <Pressable
+                            style={styles.playButton}
+                            onPress={() => setShowVideo((v) => !v)}
+                        >
+                            <Text style={styles.playButtonText}>
+                                {showVideo ? "Show Snapshot" : "▶  Play Clip"}
+                            </Text>
+                        </Pressable>
+                    )}
                 </ScrollView>
             )}
         </>
@@ -161,9 +181,10 @@ export default function AlertDetailScreen() {
 
 const styles = StyleSheet.create({
     container: {
-        padding: 24,
+        padding: 20,
         backgroundColor: NAVY,
         flexGrow: 1,
+        gap: 16,
     },
     center: {
         flex: 1,
@@ -173,54 +194,77 @@ const styles = StyleSheet.create({
         padding: 24,
         gap: 10,
     },
-    muted: {
-        color: "#9ca3af",
-        fontSize: 14,
+    muted: { color: "#9ca3af", fontSize: 14 },
+    notFoundText: { color: "#ffffff", fontSize: 20, fontWeight: "700" },
+    mediaContainer: {
+        borderRadius: 20,
+        overflow: "hidden",
     },
-    pageTitle: {
-        color: "#ffffff",
-        fontSize: 28,
-        fontWeight: "800",
-        marginBottom: 20,
-    },
-    card: {
-        backgroundColor: "#f5f5f5",
-        borderRadius: 24,
-        padding: 18,
-    },
-    image: {
+    media: {
         width: "100%",
-        height: 240,
-        borderRadius: 18,
-        backgroundColor: "#d9d9d9",
-        marginBottom: 18,
+        height: 260,
+        backgroundColor: "#1e293b",
     },
     title: {
-        color: "#111827",
+        color: "#ffffff",
         fontSize: 24,
         fontWeight: "800",
-        marginBottom: 12,
     },
-    meta: {
-        color: "#374151",
-        fontSize: 16,
+    timestamp: {
+        color: "#64748b",
+        fontSize: 14,
+        marginTop: -8,
+    },
+    card: {
+        backgroundColor: NAVY_CARD,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: "#1e293b",
+        padding: 16,
+        gap: 4,
+    },
+    cardHeading: {
+        color: "#94a3b8",
+        fontSize: 11,
+        fontWeight: "700",
+        textTransform: "uppercase",
+        letterSpacing: 1,
         marginBottom: 8,
     },
+    infoRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        paddingVertical: 10,
+    },
+    infoLabel: {
+        color: "#94a3b8",
+        fontSize: 14,
+        fontWeight: "500",
+    },
+    infoValue: {
+        color: "#ffffff",
+        fontSize: 14,
+        fontWeight: "600",
+        maxWidth: "60%",
+        textAlign: "right",
+    },
+    infoValueAccent: {
+        color: "#22c55e",
+    },
+    divider: {
+        height: 1,
+        backgroundColor: "#1e293b",
+    },
     playButton: {
-        marginTop: 18,
-        backgroundColor: NAVY,
+        backgroundColor: "#1d4ed8",
         borderRadius: 999,
         paddingVertical: 16,
         alignItems: "center",
     },
     playButtonText: {
         color: "#ffffff",
-        fontSize: 18,
-        fontWeight: "700",
-    },
-    notFoundText: {
-        color: "#ffffff",
-        fontSize: 20,
+        fontSize: 16,
         fontWeight: "700",
     },
 });

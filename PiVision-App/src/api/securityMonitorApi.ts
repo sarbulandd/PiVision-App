@@ -30,6 +30,16 @@ interface PiEventsResponse {
 }
 
 // ──────────────────────────────────────────────
+// Face types
+// ──────────────────────────────────────────────
+
+export interface KnownFace {
+    id: string;
+    name: string;
+    imageUrl?: string;
+}
+
+// ──────────────────────────────────────────────
 // App-facing types (used by screens)
 // ──────────────────────────────────────────────
 
@@ -163,6 +173,52 @@ export async function clearAllAlerts(): Promise<void> {
         headers: HEADERS,
     });
     if (!res.ok) throw new Error(`DELETE /events failed (${res.status})`);
+}
+
+function mapFace(raw: any): KnownFace {
+    return {
+        id: raw.id,
+        name: raw.name,
+        imageUrl: raw.image_url ?? raw.imageUrl,
+    };
+}
+
+/** GET /faces → list all enrolled faces */
+export async function getFaces(): Promise<KnownFace[]> {
+    const res = await fetch(`${BASE_URL}/faces`, { headers: HEADERS });
+    if (!res.ok) throw new Error(`GET /faces failed (${res.status})`);
+    const data = await res.json();
+    return data.map(mapFace);
+}
+
+/** POST /faces → enrol a new face (multipart/form-data) */
+export async function enrollFace(name: string, imageUri: string): Promise<KnownFace> {
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("image", {
+        uri: imageUri,
+        type: "image/jpeg",
+        name: "face.jpg",
+    } as any);
+
+    const res = await fetch(`${BASE_URL}/faces`, {
+        method: "POST",
+        headers: { "ngrok-skip-browser-warning": "true" },
+        body: formData,
+    });
+
+    if (res.status === 422) throw new Error("No face detected in the image. Please try a clearer photo.");
+    if (!res.ok) throw new Error(`POST /faces failed (${res.status})`);
+    return mapFace(await res.json());
+}
+
+/** DELETE /faces/:id → remove an enrolled face */
+export async function deleteFace(id: string): Promise<void> {
+    const res = await fetch(`${BASE_URL}/faces/${id}`, {
+        method: "DELETE",
+        headers: HEADERS,
+    });
+    if (!res.ok) throw new Error(`DELETE /faces/${id} failed (${res.status})`);
 }
 
 /** GET / → quick connectivity check */

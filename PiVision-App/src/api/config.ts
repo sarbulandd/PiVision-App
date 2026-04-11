@@ -3,7 +3,7 @@
 // Update BASE_URL whenever your ngrok URL changes.
 // -------------------------------------------------
 
-export const BASE_URL = "https://e538-82-16-250-247.ngrok-free.app";
+export const BASE_URL = "https://6cbd-82-16-250-247.ngrok-free.app";
 
 // Required to bypass ngrok's browser warning interstitial on API calls
 export const HEADERS: Record<string, string> = {

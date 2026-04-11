@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
 } from "react-native";
 import Header from "../../src/components/Header";
+import { useTheme } from "../../src/contexts/ThemeContext";
 import {
     getStatus,
     armSystem,
@@ -18,11 +19,11 @@ import {
     Alert,
 } from "../../src/api/securityMonitorApi";
 
-const NAVY_BACKGROUND = "#020617";
-const NAVY_DARK = "#0b1120";
-const WHITE = "#ffffff";
+const NAVY = "#020617";
+const NAVY_CARD = "#0f172a";
 
 export default function DashboardScreen() {
+    const { colors } = useTheme();
     const [status, setStatus] = useState<SystemStatus | null>(null);
     const [latestAlert, setLatestAlert] = useState<Alert | null>(null);
     const [loading, setLoading] = useState(true);
@@ -33,7 +34,6 @@ export default function DashboardScreen() {
         try {
             setLoading(true);
             setError(null);
-
             const [data, latest] = await Promise.all([getStatus(), getLatestAlert()]);
             setStatus(data);
             setLatestAlert(latest);
@@ -46,17 +46,13 @@ export default function DashboardScreen() {
         }
     };
 
-    useEffect(() => {
-        loadStatus();
-    }, []);
+    useEffect(() => { loadStatus(); }, []);
 
     const handleToggleArm = async () => {
         if (!status) return;
-
         try {
             setUpdating(true);
             setError(null);
-
             if (status.armed) {
                 await disarmSystem();
                 setStatus({ ...status, armed: false });
@@ -75,7 +71,7 @@ export default function DashboardScreen() {
     if (loading) {
         return (
             <View style={styles.center}>
-                <ActivityIndicator size="large" color={WHITE} />
+                <ActivityIndicator size="large" color="#ffffff" />
                 <Text style={styles.muted}>Loading PiVision status…</Text>
             </View>
         );
@@ -85,9 +81,8 @@ export default function DashboardScreen() {
         return (
             <View style={styles.center}>
                 <Text style={styles.error}>{error ?? "No status available."}</Text>
-
-                <TouchableOpacity style={styles.primaryButton} onPress={loadStatus}>
-                    <Text style={styles.primaryButtonText}>Retry</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={loadStatus}>
+                    <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -96,79 +91,55 @@ export default function DashboardScreen() {
     return (
         <View style={styles.screen}>
             <Header />
+            <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
 
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.title}>Dashboard</Text>
-                </View>
-
+                {/* System Status Card */}
                 <View style={styles.card}>
                     <View style={styles.cardHeaderRow}>
                         <Text style={styles.cardTitle}>System Status</Text>
-
-                        <View
-                            style={[
-                                styles.statusPill,
-                                status.online ? styles.statusOnline : styles.statusOffline,
-                            ]}
-                        >
-                            <View
-                                style={[
-                                    styles.statusDot,
-                                    { backgroundColor: status.online ? "#22c55e" : "#ef4444" },
-                                ]}
-                            />
-                            <Text
-                                style={[
-                                    styles.statusPillText,
-                                    { color: status.online ? "#14532d" : "#991b1b" },
-                                ]}
-                            >
-                                {status.online ? "Online" : "Offline"}
-                            </Text>
+                        <View style={[styles.pill, status.online ? styles.pillOnline : styles.pillOffline]}>
+                            <View style={[styles.pillDot, { backgroundColor: status.online ? "#22c55e" : "#ef4444" }]} />
+                            <Text style={styles.pillText}>{status.online ? "Online" : "Offline"}</Text>
                         </View>
                     </View>
 
-                    <Text style={styles.cardBodyText}>Last heartbeat:</Text>
-                    <Text style={styles.cardBodyStrong}>
-                        {new Date(status.lastHeartbeat).toLocaleString()}
-                    </Text>
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Last heartbeat</Text>
+                        <Text style={styles.infoValue}>
+                            {new Date(status.lastHeartbeat).toLocaleTimeString("en-GB", {
+                                hour: "2-digit", minute: "2-digit", second: "2-digit"
+                            })}
+                        </Text>
+                    </View>
 
                     <View style={styles.divider} />
 
-                    <Text style={styles.cardBodyText}>
-                        Armed state:{" "}
-                        <Text
-                            style={[
-                                styles.armedText,
-                                status.armed ? styles.armedOn : styles.armedOff,
-                            ]}
-                        >
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Armed state</Text>
+                        <Text style={[styles.infoValue, status.armed ? styles.armedOn : styles.armedOff]}>
                             {status.armed ? "ARMED" : "DISARMED"}
                         </Text>
-                    </Text>
+                    </View>
 
                     <TouchableOpacity
-                        style={[
-                            styles.primaryButton,
-                            status.armed && styles.dangerButton,
-                            updating && styles.buttonDisabled,
-                        ]}
+                        style={[styles.armButton, status.armed && styles.disarmButton, updating && styles.buttonDisabled]}
                         onPress={handleToggleArm}
                         disabled={updating}
                     >
-                        <Text style={styles.primaryButtonText}>
-                            {updating
-                                ? "Updating…"
-                                : status.armed
-                                    ? "Disarm system"
-                                    : "Arm system"}
+                        <Text style={styles.armButtonText}>
+                            {updating ? "Updating…" : status.armed ? "Disarm System" : "Arm System"}
                         </Text>
                     </TouchableOpacity>
                 </View>
 
+                {/* Latest Snapshot Card */}
                 <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Latest Snapshot</Text>
+                    <View style={styles.cardHeaderRow}>
+                        <Text style={styles.cardTitle}>Latest Snapshot</Text>
+                        <TouchableOpacity onPress={loadStatus} disabled={loading} hitSlop={8}>
+                            <Text style={styles.refreshIcon}>↻</Text>
+                        </TouchableOpacity>
+                    </View>
 
                     <Image
                         source={
@@ -180,157 +151,61 @@ export default function DashboardScreen() {
                         resizeMode="cover"
                     />
 
-                    {latestAlert ? (
-                        <Text style={styles.muted}>
-                            {new Date(latestAlert.timestamp).toLocaleString("en-GB", {
-                                day: "2-digit",
-                                month: "2-digit",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                            })}
-                        </Text>
-                    ) : (
-                        <Text style={styles.muted}>No snapshots yet</Text>
-                    )}
+                    <Text style={styles.snapshotTime}>
+                        {latestAlert
+                            ? new Date(latestAlert.timestamp).toLocaleString("en-GB", {
+                                day: "2-digit", month: "2-digit", year: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                            })
+                            : "No snapshots yet"}
+                    </Text>
                 </View>
+
             </ScrollView>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    screen: {
-        flex: 1,
-        backgroundColor: NAVY_BACKGROUND,
-    },
-    container: {
-        padding: 16,
-        paddingBottom: 32,
-        gap: 16,
-    },
-    center: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-        backgroundColor: NAVY_BACKGROUND,
-        padding: 16,
-    },
-    headerRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-    },
-    title: {
-        fontSize: 26,
-        fontWeight: "700",
-        color: WHITE,
-        marginBottom: 4,
-    },
+    screen: { flex: 1, backgroundColor: NAVY },
+    container: { padding: 16, paddingBottom: 32, gap: 16 },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: NAVY, padding: 16 },
     card: {
-        backgroundColor: WHITE,
-        padding: 16,
-        borderRadius: 16,
+        backgroundColor: NAVY_CARD,
+        borderRadius: 20,
         borderWidth: 1,
-        borderColor: "#1f2937",
-        shadowColor: NAVY_DARK,
-        shadowOpacity: 0.25,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        gap: 10,
+        borderColor: "#1e293b",
+        padding: 18,
+        gap: 12,
     },
-    cardHeaderRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 4,
-    },
-    cardTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: NAVY_DARK,
-    },
-    cardBodyText: {
-        fontSize: 13,
-        color: "#4b5563",
-    },
-    cardBodyStrong: {
-        fontSize: 13,
-        color: "#111827",
-        fontWeight: "600",
-        marginBottom: 4,
-    },
-    muted: {
-        color: "#6b7280",
-        fontSize: 12,
+    cardHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    cardTitle: { fontSize: 16, fontWeight: "700", color: "#ffffff" },
+    refreshIcon: { fontSize: 20, color: "#64748b", fontWeight: "600" },
+    infoRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    infoLabel: { color: "#94a3b8", fontSize: 14 },
+    infoValue: { color: "#ffffff", fontSize: 14, fontWeight: "600" },
+    armedOn: { color: "#ef4444" },
+    armedOff: { color: "#22c55e" },
+    divider: { height: 1, backgroundColor: "#1e293b" },
+    pill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+    pillOnline: { backgroundColor: "#14532d" },
+    pillOffline: { backgroundColor: "#450a0a" },
+    pillDot: { width: 7, height: 7, borderRadius: 999, marginRight: 5 },
+    pillText: { color: "#ffffff", fontSize: 11, fontWeight: "700" },
+    armButton: {
         marginTop: 4,
-    },
-    error: {
-        color: "#fca5a5",
-        fontSize: 14,
-        textAlign: "center",
-    },
-    snapshotImage: {
-        width: "100%",
-        height: 180,
-        borderRadius: 12,
-        marginTop: 8,
-        backgroundColor: "#e5e7eb",
-    },
-    statusPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 999,
-    },
-    statusOnline: {
-        backgroundColor: "#dcfce7",
-    },
-    statusOffline: {
-        backgroundColor: "#fee2e2",
-    },
-    statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 999,
-        marginRight: 6,
-    },
-    statusPillText: {
-        fontSize: 11,
-        fontWeight: "600",
-    },
-    armedText: {
-        fontWeight: "700",
-    },
-    armedOn: {
-        color: "#b91c1c",
-    },
-    armedOff: {
-        color: "#1d4ed8",
-    },
-    primaryButton: {
-        marginTop: 10,
-        paddingVertical: 10,
+        paddingVertical: 13,
         borderRadius: 999,
         alignItems: "center",
-        backgroundColor: NAVY_DARK,
+        backgroundColor: "#1d4ed8",
     },
-    dangerButton: {
-        backgroundColor: "#b91c1c",
-    },
-    buttonDisabled: {
-        opacity: 0.7,
-    },
-    primaryButtonText: {
-        color: WHITE,
-        fontWeight: "600",
-        fontSize: 14,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: "#e5e7eb",
-        marginVertical: 8,
-    },
+    disarmButton: { backgroundColor: "#7f1d1d" },
+    buttonDisabled: { opacity: 0.6 },
+    armButtonText: { color: "#ffffff", fontWeight: "700", fontSize: 14 },
+    snapshotImage: { width: "100%", height: 200, borderRadius: 14, backgroundColor: "#1e293b" },
+    snapshotTime: { color: "#64748b", fontSize: 12 },
+    muted: { color: "#9ca3af", fontSize: 14 },
+    error: { color: "#fca5a5", fontSize: 14, textAlign: "center" },
+    retryButton: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 999, backgroundColor: "#1d4ed8" },
+    retryButtonText: { color: "#ffffff", fontWeight: "600", fontSize: 14 },
 });
